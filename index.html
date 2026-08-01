@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quantum OPS Elite - Authentication</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Supabase JS Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              bg: '#07070F',
+              card: '#121224',
+              sidebar: '#0E0E1C',
+              purple: '#6C5CE7',
+              accent: '#8B5CF6'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #07070F; font-family: system-ui, -apple-system, sans-serif; color: #E2E8F0; }
+    .iphone-frame {
+      width: 100%;
+      max-width: 410px;
+      height: 100vh;
+      max-height: 860px;
+      background: #0B0B16;
+      border: 1px solid rgba(139, 92, 246, 0.2);
+      box-shadow: 0 25px 50px -12px rgba(15, 13, 35, 0.7);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    @media (min-width: 768px) {
+      body { align-items: center; justify-content: center; display: flex; height: 100vh; }
+      .iphone-frame { border-radius: 48px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- MOBILE DEVICE FRAME CONTAINER -->
+  <div class="iphone-frame p-6 flex flex-col justify-between overflow-y-auto">
+    
+    <!-- TOP LOGO & HEADER -->
+    <div class="space-y-6 pt-6">
+      <div class="flex items-center justify-center gap-2">
+        <div class="w-10 h-10 rounded-xl bg-purple-600/30 border border-purple-500/40 flex items-center justify-center text-purple-300 font-bold text-lg shadow-inner">Q</div>
+        <span class="font-bold tracking-wider text-sm text-white">QUANTUM OPS <span class="text-[10px] text-purple-400 border border-purple-500/30 px-1 rounded">ELITE</span></span>
+      </div>
+
+      <div class="text-center space-y-1">
+        <h1 id="auth-header-title" class="text-xl font-bold text-white">Welcome Back 👋</h1>
+        <p id="auth-header-sub" class="text-xs text-slate-400">Log in to manage your business operations live.</p>
+      </div>
+    </div>
+
+    <!-- DYNAMIC FORM CONTAINER -->
+    <div class="space-y-4 my-auto">
+      
+      <!-- SUCCESS / ERROR ALERT BANNER -->
+      <div id="auth-alert" class="hidden p-3 rounded-xl text-xs font-medium text-center"></div>
+
+      <!-- LOGIN / SIGNUP / RESET FORM -->
+      <form id="auth-form" onsubmit="handleAuthSubmit(event)" class="space-y-3.5 text-xs">
+        
+        <!-- Business Name (Only shown during Sign Up) -->
+        <div id="field-business-name" class="hidden space-y-1">
+          <label class="text-[10px] text-slate-400 font-medium">Business / Company Name *</label>
+          <input type="text" id="input-business" placeholder="e.g. Quantum Stores Ltd" class="w-full bg-[#191932] border border-purple-500/20 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-purple-500">
+        </div>
+
+        <!-- Full Name (Only shown during Sign Up) -->
+        <div id="field-fullname" class="hidden space-y-1">
+          <label class="text-[10px] text-slate-400 font-medium">Full Name *</label>
+          <input type="text" id="input-name" placeholder="e.g. John Doe" class="w-full bg-[#191932] border border-purple-500/20 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-purple-500">
+        </div>
+
+        <!-- Email Field -->
+        <div class="space-y-1">
+          <label class="text-[10px] text-slate-400 font-medium">Email Address *</label>
+          <input type="email" id="input-email" required placeholder="name@business.com" class="w-full bg-[#191932] border border-purple-500/20 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-purple-500">
+        </div>
+
+        <!-- Password Field (Hidden during Forgot Password) -->
+        <div id="field-password" class="space-y-1">
+          <div class="flex items-center justify-between">
+            <label class="text-[10px] text-slate-400 font-medium">Password *</label>
+            <button type="button" onclick="switchAuthMode('forgot')" class="text-[10px] text-purple-400 hover:underline">Forgot password?</button>
+          </div>
+          <input type="password" id="input-password" placeholder="••••••••" class="w-full bg-[#191932] border border-purple-500/20 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-purple-500">
+        </div>
+
+        <!-- SUBMIT BUTTON -->
+        <button type="submit" id="auth-submit-btn" class="w-full py-3 mt-2 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl text-white font-bold text-xs shadow-lg shadow-purple-600/30 hover:opacity-95 transition">
+          Log In
+        </button>
+      </form>
+
+    </div>
+
+    <!-- FOOTER MODE TOGGLE SWITCHES -->
+    <div class="text-center text-xs text-slate-400 pt-4 pb-2 border-t border-purple-500/10">
+      <p id="auth-switch-text">
+        Don't have an account? <button onclick="switchAuthMode('signup')" class="text-purple-400 font-bold hover:underline">Create Account</button>
+      </p>
+    </div>
+
+  </div>
+
+  <!-- AUTHENTICATION LOGIC ENGINE -->
+  <script>
+    const SUPABASE_URL = "https://ptznejibslwmzlxzmsgh.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_eVTCV7q1AFmD76R9XX5Esg_3QwAcr32";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentMode = 'login'; // 'login', 'signup', or 'forgot'
+
+    function switchAuthMode(mode) {
+      currentMode = mode;
+      const title = document.getElementById('auth-header-title');
+      const sub = document.getElementById('auth-header-sub');
+      const btn = document.getElementById('auth-submit-btn');
+      const switchText = document.getElementById('auth-switch-text');
+      
+      const fieldBusiness = document.getElementById('field-business-name');
+      const fieldName = document.getElementById('field-fullname');
+      const fieldPassword = document.getElementById('field-password');
+      const alertBox = document.getElementById('auth-alert');
+      
+      alertBox.classList.add('hidden');
+
+      if (mode === 'login') {
+        title.textContent = 'Welcome Back 👋';
+        sub.textContent = 'Log in to manage your business operations live.';
+        btn.textContent = 'Log In';
+        fieldBusiness.classList.add('hidden');
+        fieldName.classList.add('hidden');
+        fieldPassword.classList.remove('hidden');
+        switchText.innerHTML = `Don't have an account? <button onclick="switchAuthMode('signup')" class="text-purple-400 font-bold hover:underline">Create Account</button>`;
+      } else if (mode === 'signup') {
+        title.textContent = 'Create Account 🚀';
+        sub.textContent = 'Set up your secure business instance.';
+        btn.textContent = 'Create Account & Start';
+        fieldBusiness.classList.remove('hidden');
+        fieldName.classList.remove('hidden');
+        fieldPassword.classList.remove('hidden');
+        switchText.innerHTML = `Already have an account? <button onclick="switchAuthMode('login')" class="text-purple-400 font-bold hover:underline">Log In</button>`;
+      } else if (mode === 'forgot') {
+        title.textContent = 'Reset Password 🔑';
+        sub.textContent = 'We will email you a password reset link.';
+        btn.textContent = 'Send Reset Link';
+        fieldBusiness.classList.add('hidden');
+        fieldName.classList.add('hidden');
+        fieldPassword.classList.add('hidden');
+        switchText.innerHTML = `Remembered your password? <button onclick="switchAuthMode('login')" class="text-purple-400 font-bold hover:underline">Back to Log In</button>`;
+      }
+    }
+
+    async function handleAuthSubmit(event) {
+      event.preventDefault();
+      const email = document.getElementById('input-email').value.trim();
+      const password = document.getElementById('input-password').value;
+      const businessName = document.getElementById('input-business').value.trim();
+      const fullName = document.getElementById('input-name').value.trim();
+      
+      const btn = document.getElementById('auth-submit-btn');
+      const alertBox = document.getElementById('auth-alert');
+      
+      alertBox.classList.add('hidden');
+      btn.disabled = true;
+      const originalText = btn.textContent;
+      btn.textContent = 'Processing...';
+
+      try {
+        if (currentMode === 'login') {
+          // --- LOGIN FLOW ---
+          const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          window.location.href = 'dashboard.html';
+
+        } else if (currentMode === 'signup') {
+          // --- SIGN UP FLOW ---
+          if (!businessName) throw new Error('Please enter your Business Name.');
+          if (!fullName) throw new Error('Please enter your Full Name.');
+
+          // 1. Create Supabase Auth User
+          const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+            email,
+            password,
+            options: { data: { full_name: fullName } }
+          });
+          if (authError) throw authError;
+
+          const user = authData.user;
+          if (user) {
+            // 2. Automatically create their Company record in Supabase
+            const { data: compData, error: compError } = await supabaseClient
+              .from('companies')
+              .insert([{ name: businessName, owner_id: user.id }])
+              .select()
+              .single();
+
+            if (compError) throw compError;
+
+            // 3. Link user to company_users join table
+            await supabaseClient.from('company_users').insert([{
+              company_id: compData.id,
+              user_id: user.id,
+              role: 'admin'
+            }]);
+          }
+
+          alertBox.className = 'p-3 rounded-xl text-xs font-medium text-center bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+          alertBox.textContent = 'Account created successfully! Check your email for confirmation, or log in now.';
+          alertBox.classList.remove('hidden');
+          setTimeout(() => switchAuthMode('login'), 3000);
+
+        } else if (currentMode === 'forgot') {
+          // --- FORGOTTEN PASSWORD FLOW ---
+          const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin + '/dashboard.html'
+          });
+          if (error) throw error;
+
+          alertBox.className = 'p-3 rounded-xl text-xs font-medium text-center bg-purple-500/20 text-purple-300 border border-purple-500/30';
+          alertBox.textContent = 'Password reset link sent! Check your email inbox.';
+          alertBox.classList.remove('hidden');
+        }
+      } catch (err) {
+        alertBox.className = 'p-3 rounded-xl text-xs font-medium text-center bg-rose-500/20 text-rose-300 border border-rose-500/30';
+        alertBox.textContent = err.message;
+        alertBox.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    }
+  </script>
+</body>
+</html>
